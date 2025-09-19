@@ -1,0 +1,9 @@
+.env
+.idea/*
+.venv/*
+db.sqlite3
+videos_baixados/*
+videos_gerados/*
+__pycache__/
+*.py[cod]
+*$py.class
