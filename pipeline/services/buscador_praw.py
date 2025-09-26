@@ -2,21 +2,36 @@
 import os
 import praw
 import hashlib
+import random  # <-- NOVO: Importa a biblioteca para sorteio
 from django.db.models import Q
 from pipeline.models import ProcessedPost
 
 
 def buscar_post_no_reddit():
     """
-    Busca posts no Reddit, limpa a formatação Markdown e retorna o primeiro
-    que ainda não foi processado.
+    Busca posts no Reddit de um subreddit aleatório, limpa a formatação
+    Markdown e retorna o primeiro que ainda não foi processado.
     """
     print("-> Acessando o serviço de busca no Reddit...")
 
     client_id = os.getenv("REDDIT_CLIENT_ID")
     client_secret = os.getenv("REDDIT_CLIENT_SECRET")
     user_agent = os.getenv("REDDIT_USER_AGENT")
-    subreddit_alvo = "EuSouOBabaca"
+
+    # --- INÍCIO DA MODIFICAÇÃO ---
+    # Lista de subreddits para buscar histórias. Adicione ou remova conforme quiser!
+    subreddits_para_buscar = [
+        "EuSouOBabaca",
+        "relatosdoreddit",
+        "desabafos",
+        "HistoriasdoReddit",
+        "antitrampo",
+        "conversas"
+    ]
+    # Sorteia um subreddit da lista para usar nesta execução
+    subreddit_alvo = random.choice(subreddits_para_buscar)
+    print(f"-> Subreddit escolhido para esta execução: r/{subreddit_alvo}")
+    # --- FIM DA MODIFICAÇÃO ---
 
     if not all([client_id, client_secret, user_agent]):
         print("❌ ERRO: Credenciais do Reddit não configuradas.")
@@ -28,12 +43,11 @@ def buscar_post_no_reddit():
 
         print(f"-> Buscando os 25 posts mais populares em r/{subreddit_alvo}...")
         for post in subreddit.hot(limit=25):
-            if post.selftext and not post.stickied and len(post.selftext) > 250:
+            if post.selftext and not post.stickied and len(post.selftext) > 2000:
                 # Pega o texto cru
                 titulo_cru = post.title.strip('"')
                 corpo_cru = post.selftext
 
-                # --- INÍCIO DA CORREÇÃO DE LIMPEZA ---
                 # Lista de caracteres de formatação a remover
                 caracteres_a_remover = ['*', '_', '#', '~~', '`']
 
@@ -43,7 +57,6 @@ def buscar_post_no_reddit():
                 for char in caracteres_a_remover:
                     titulo_limpo = titulo_limpo.replace(char, '')
                     corpo_limpo = corpo_limpo.replace(char, '')
-                # --- FIM DA CORREÇÃO DE LIMPEZA ---
 
                 texto_completo_limpo = f"{titulo_limpo}\n\n{corpo_limpo}"
 

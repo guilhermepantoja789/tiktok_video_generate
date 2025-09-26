@@ -1,12 +1,31 @@
 # pipeline/services/pexels_videos.py
 import os
 import requests
-import random  # <-- Adicionamos a biblioteca random
+import random
+
+# --- PASSO 1: LISTA DE TERMOS VIRAIS E CHAMATIVOS ---
+# Adicionamos uma lista de termos de busca com alta chance de encontrar vídeos virais.
+TERMOS_DE_BUSCA_VIRAL = [
+    "abstract background",
+    "satisfying loops",
+    "particle animation",
+    "nature footage",
+    "ocean waves",
+    "minecraft parkour",  # Exemplo de conteúdo de jogo
+    "subway surfers gameplay",  # Exemplo de conteúdo de jogo
+    "time lapse city",
+    "galaxy animation",
+    "tunnel background",
+    "technology abstract",
+    "forest aerial",
+    "calm rain",
+    "geometric patterns"
+]
 
 
 def _baixar_e_salvar_video(url, caminho_completo):
     """Função auxiliar para baixar um ficheiro de uma URL."""
-    print(f"-> A baixar vídeo para: {caminho_completo}")
+    print(f"-> A baixar vídeo de {url} para: {caminho_completo}")
     try:
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
@@ -20,21 +39,16 @@ def _baixar_e_salvar_video(url, caminho_completo):
         return False
 
 
-def buscar_video_pexels(termo_de_busca, pasta_downloads):
+def _buscar_um_termo_na_pexels(termo_de_busca, headers):
     """
-    Busca e baixa um vídeo vertical aleatório de uma página aleatória da Pexels API.
+    Função interna que realiza a busca para UM ÚNICO termo.
+    Retorna o link do vídeo se encontrar, ou None se falhar.
     """
-    print("-> Acessando o serviço da Pexels API com shuffle melhorado...")
-    api_key = os.getenv("PEXELS_API_KEY")
-    if not api_key or "SUA_CHAVE" in api_key:
-        print("❌ ERRO: Chave da API da Pexels não configurada no ficheiro .env")
-        return None
+    print(f"-> Tentando buscar por: '{termo_de_busca}'...")
 
-    headers = {"Authorization": api_key}
-
-    # --- INÍCIO DA LÓGICA DE SHUFFLE ---
-    pagina_aleatoria = random.randint(1, 10)  # Escolhe um número de página entre 1 e 10
-    resultados_por_pagina = 50  # Pede 50 vídeos para ter uma boa seleção
+    # Lógica de shuffle (busca em página aleatória) foi mantida
+    pagina_aleatoria = random.randint(1, 10)
+    resultados_por_pagina = 50
 
     params = {
         "query": termo_de_busca,
@@ -42,31 +56,70 @@ def buscar_video_pexels(termo_de_busca, pasta_downloads):
         "orientation": "portrait",
         "page": pagina_aleatoria
     }
-    # --- FIM DA LÓGICA DE SHUFFLE ---
 
     try:
         response = requests.get("https://api.pexels.com/videos/search", headers=headers, params=params)
         response.raise_for_status()
+        data = response.json()
+        videos = data.get("videos", [])
 
-        videos = response.json().get("videos", [])
+        if not videos:
+            print(f"🟡 Nenhum vídeo vertical encontrado para '{termo_de_busca}' na página {pagina_aleatoria}.")
+            return None, None
 
-        if videos:
-            # --- SEGUNDA PARTE DO SHUFFLE ---
-            # Em vez de pegar o primeiro (videos[0]), escolhemos um aleatoriamente da lista de 50
-            video_escolhido = random.choice(videos)
+        # Escolhe um vídeo aleatório da lista de resultados
+        video_escolhido = random.choice(videos)
+        video_id = video_escolhido.get("id")
 
-            video_link = next((f['link'] for f in video_escolhido['video_files'] if f['quality'] in ['hd', 'fhd']),
-                              None)
+        # Procura por um link de boa qualidade (Full HD ou HD)
+        video_link = next(
+            (f['link'] for f in video_escolhido.get('video_files', []) if f.get('quality') in ['fhd', 'hd']),
+            None
+        )
 
-            if video_link:
-                caminho_final = os.path.join(pasta_downloads,
-                                             f"{termo_de_busca.replace(' ', '_')}_{video_escolhido['id']}.mp4")
-                if _baixar_e_salvar_video(video_link, caminho_final):
-                    print("✅ Vídeo de fundo aleatório baixado com sucesso.")
-                    return caminho_final
+        if not video_link:
+            print(f"🟡 Vídeo encontrado para '{termo_de_busca}', mas sem link de qualidade FHD/HD.")
+            return None, None
 
-        print(f"❌ Nenhum vídeo vertical encontrado para '{termo_de_busca}' na página {pagina_aleatoria}.")
-        return None
+        return video_link, video_id
+
     except requests.exceptions.RequestException as e:
-        print(f"❌ Erro na comunicação com a API da Pexels: {e}")
+        print(f"❌ Erro na comunicação com a API da Pexels para o termo '{termo_de_busca}': {e}")
+        return None, None
+
+
+# --- PASSO 2: FUNÇÃO PRINCIPAL COM LÓGICA DE FALLBACK ---
+# Esta é a nova função que você deve chamar no seu pipeline.
+def buscar_video_com_fallback(pasta_downloads):
+    """
+    Busca um vídeo na Pexels tentando vários termos de busca em ordem aleatória.
+    Para no primeiro sucesso.
+    """
+    print("-> Acessando o serviço da Pexels com lógica de fallback...")
+    api_key = os.getenv("PEXELS_API_KEY")
+    if not api_key or "SUA_CHAVE" in api_key:
+        print("❌ ERRO: Chave da API da Pexels não configurada no ficheiro .env")
         return None
+
+    headers = {"Authorization": api_key}
+
+    # Embaralha a lista de termos para que cada execução tente uma ordem diferente
+    termos_embaralhados = random.sample(TERMOS_DE_BUSCA_VIRAL, len(TERMOS_DE_BUSCA_VIRAL))
+
+    for termo in termos_embaralhados:
+        video_link, video_id = _buscar_um_termo_na_pexels(termo, headers)
+
+        if video_link and video_id:
+            print(f"✅ Vídeo encontrado para o termo '{termo}'!")
+            caminho_final = os.path.join(pasta_downloads, f"{termo.replace(' ', '_')}_{video_id}.mp4")
+
+            if _baixar_e_salvar_video(video_link, caminho_final):
+                print("✅ Vídeo de fundo baixado com sucesso.")
+                return caminho_final
+            else:
+                # Se o download falhar, continua para o próximo termo
+                print(f"🟡 Falha no download do vídeo para '{termo}'. Tentando próximo termo...")
+
+    # Se o loop terminar sem encontrar nenhum vídeo
+    print("❌ Nenhum vídeo encontrado para nenhum dos termos de busca. Verifique a API da Pexels ou os termos.")
+    return None

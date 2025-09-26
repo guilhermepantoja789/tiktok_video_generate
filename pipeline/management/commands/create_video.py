@@ -13,7 +13,7 @@ from pipeline.services.buscador_praw import buscar_post_no_reddit
 from pipeline.services.corretor_gramatical import corrigir_texto
 from pipeline.services.edge_tts import gerar_audio_sync
 from pipeline.services.local_timestamps import gerar_timestamps_localmente
-from pipeline.services.pexels_videos import buscar_video_pexels
+from pipeline.services.pexels_videos import buscar_video_com_fallback
 from pipeline.services.video_renderer import renderizar_video
 
 
@@ -151,11 +151,11 @@ class Command(BaseCommand):
 
         # PASSO 5: BUSCAR VÍDEO DE FUNDO
         self.stdout.write(self.style.HTTP_INFO("\n[PASSO 5/7] Buscando vídeo de fundo (Pexels)..."))
-        termos_de_busca_gameplay = ["abstract tunnel", "CGI animation", "fractal zoom", "endless road animation",
-                                    "flying through clouds"]
-        termo_escolhido = random.choice(termos_de_busca_gameplay)
-        self.stdout.write(self.style.NOTICE(f"-> Termo de busca de vídeo escolhido: '{termo_escolhido}'"))
-        caminho_video_base = buscar_video_pexels(termo_escolhido, pasta_de_trabalho)
+        # termos_de_busca_gameplay = ["abstract tunnel", "CGI animation", "fractal zoom", "endless road animation",
+        #                             "flying through clouds"]
+        # termo_escolhido = random.choice(termos_de_busca_gameplay)
+        # self.stdout.write(self.style.NOTICE(f"-> Termo de busca de vídeo escolhido: '{termo_escolhido}'"))
+        caminho_video_base = buscar_video_com_fallback(pasta_de_trabalho)
         if not caminho_video_base: self.stderr.write(self.style.ERROR("Pipeline encerrada.")); return
 
         # PASSO 6: RENDERIZAR VÍDEO DA HISTÓRIA

@@ -35,7 +35,8 @@ def corrigir_texto(texto):
         "2. Reescreva frases que soem estranhas ou que sejam muito longas, para melhorar a clareza e a fluidez da narração.\n"
         "3. Adicione pontuação (vírgulas, pontos) para criar pausas naturais na fala.\n"
         "4. Mantenha o tom e a intenção original do autor (se for um desabafo, deve continuar a soar como um desabafo).\n"
-        "5. NÃO adicione nenhum comentário, introdução ou conclusão sua. Apenas devolva o texto corrigido e refinado.\n\n"
+        "5. NÃO adicione nenhum comentário, introdução ou conclusão sua. Apenas devolva o texto corrigido e refinado.\n"
+        "6. Caso você reconheça palavras de lingua estrangeira, tente linkar com palavras famosas ou expressoes e não tentar substituir por 'fonemas' em portugues\n\n"
         "Texto original:\n---\n"
         f"{texto}"
     )
